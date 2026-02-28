@@ -3,3 +3,4 @@ If focused: +1% per 5 minutes → +0.2% per minute
 If on phone: −5% per minute
 Focus from 0–100
 Mood derived from focus %
+
