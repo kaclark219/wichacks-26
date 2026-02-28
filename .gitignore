@@ -1,0 +1,45 @@
+# dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# build outputs
+dist/
+build/
+renderer/dist/
+out/
+
+# electron
+*.log
+*.asar
+
+# env
+.env
+.env.local
+.env.*.local
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# os
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# cache
+.cache/
+.parcel-cache/
+.npm/
+.eslintcache
+
+# testing
+coverage/
+
+# temp files
+*.tmp
+.temp/

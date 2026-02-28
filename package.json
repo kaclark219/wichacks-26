@@ -1,0 +1,21 @@
+{
+  "name": "study-buddy",
+  "version": "1.0.0",
+  "main": "electron/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "npm run app:dev",
+    "app:dev": "concurrently \"npm --prefix renderer run dev\" \"wait-on http://localhost:5173 && ELECTRON_DEV=1 ELECTRON_RENDERER_URL=http://localhost:5173 electron .\"",
+    "build": "npm --prefix renderer run build",
+    "start": "npm run app:start",
+    "app:start": "npm run build && ELECTRON_DEV=0 ELECTRON_TRANSPARENT=1 electron .",
+    "app:safe": "npm run build && ELECTRON_DEV=0 ELECTRON_TRANSPARENT=0 electron .",
+    "app:test:gpu-on": "npm run build && ELECTRON_DEV=0 ELECTRON_TRANSPARENT=1 ELECTRON_DISABLE_GPU=0 electron .",
+    "app:test:gpu-off": "npm run build && ELECTRON_DEV=0 ELECTRON_TRANSPARENT=1 ELECTRON_DISABLE_GPU=1 electron ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "electron": "^31.0.0",
+    "wait-on": "^8.0.0"
+  }
+}
