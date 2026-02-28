@@ -1,0 +1,13 @@
+Flask==3.0.2
+flask-cors==4.0.0
+python-dotenv==1.0.1
+
+# OpenCV runtime
+opencv-python==4.9.0.80
+numpy==1.26.4
+
+# Only needed to export YOLO -> ONNX (you can uninstall after exporting)
+ultralytics==8.2.0
+onnx==1.16.1
+
+requests==2.32.3
