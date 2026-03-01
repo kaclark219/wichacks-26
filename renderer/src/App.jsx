@@ -419,7 +419,15 @@ useEffect(() => {
         <img
           src={
             currentPhase === "work"
-              ? (spriteState === "base" ? spriteContent : spriteContentIdle)
+              ? backendData?.tamagotchi?.mood === "happy"
+                ? (spriteState === "base" ? spriteHappy : spriteHappyIdle)
+                : backendData?.tamagotchi?.mood === "content"
+                ? (spriteState === "base" ? spriteContent : spriteContentIdle)
+                : backendData?.tamagotchi?.mood === "worried"
+                ? (spriteState === "base" ? spriteSad : spriteSadIdle)
+                : backendData?.tamagotchi?.mood === "upset"
+                ? (spriteState === "base" ? spriteAngry : spriteAngryIdle)
+                : (spriteState === "base" ? spriteContent : spriteContentIdle)
               : (spriteState === "base" ? spriteRelax : spriteRelaxIdle)
           }
           style={{
