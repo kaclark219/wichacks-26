@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import playBtn from "./assets/play-btn.png";
 import pauseBtn from "./assets/pause-btn.png";
 import stopBtn from "./assets/stop-btn.png";
@@ -8,6 +8,8 @@ import toggleOffBtn from "./assets/toggle-off.png";
 import toggleOnBtn from "./assets/toggle-on.png";
 import toggleTransitionBtn from "./assets/toggle-transition.png";
 import timerBckgrnd from "./assets/timer.png";
+
+import { startWebcamAndAnalyze } from "./webcamTest";
 
 export default function App() {
   const [pong, setPong] = useState("");
@@ -26,6 +28,11 @@ export default function App() {
   const [breakDuration, setBreakDuration] = useState(5 * 60); // 5 mins
   const [timeRemaining, setTimeRemaining] = useState(25 * 60);
   const [cyclesCompleted, setCyclesCompleted] = useState(0);
+
+  const [backendData, setBackendData] = useState(null);
+  const [backendErr, setBackendErr] = useState(null);
+
+  const stopWebcamRef = useRef(null);
 
   // button configs
   const getToggleImage = () => {
@@ -234,6 +241,53 @@ export default function App() {
     };
   }, []);
 
+useEffect(() => {
+  const shouldAnalyze = timerRunning && currentPhase === "work";
+
+  // If we should analyze and we're not already running -> start
+  if (shouldAnalyze && !stopWebcamRef.current) {
+    (async () => {
+      try {
+        const stopFn = await startWebcamAndAnalyze({
+          userId: "demo",
+          intervalMs: 1000,
+          onResult: (data) => {
+            setBackendData(data);
+            setBackendErr(null);
+          },
+          onError: (err) => {
+            setBackendErr(err);
+          },
+        });
+
+        stopWebcamRef.current = stopFn;
+      } catch (e) {
+        setBackendErr({ ok: false, error: String(e) });
+      }
+    })();
+  }
+
+  // If we should NOT analyze and it IS running -> stop
+  if (!shouldAnalyze && stopWebcamRef.current) {
+    stopWebcamRef.current();        // stops the loop + releases camera
+    stopWebcamRef.current = null;
+  }
+
+  // Cleanup on unmount
+  return () => {
+    if (stopWebcamRef.current) {
+      stopWebcamRef.current();
+      stopWebcamRef.current = null;
+    }
+  };
+}, [timerRunning, currentPhase]);
+
+useEffect(() => {
+  console.log("window.api keys:", Object.keys(window.api || {}));
+}, []);
+
+
+
   return (
     <div
       style={{
@@ -351,6 +405,54 @@ export default function App() {
           </div>
         </div>
       )}
+      <div
+  style={{
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    width: 360,
+    background: "rgba(0,0,0,0.65)",
+    color: "white",
+    padding: 12,
+    borderRadius: 10,
+    fontFamily: "monospace",
+    fontSize: 12,
+    lineHeight: 1.4,
+    zIndex: 9999,
+    WebkitAppRegion: "no-drag",
+    pointerEvents: "none",
+  }}
+>
+  <div style={{ fontWeight: "bold", marginBottom: 6 }}>Backend Debug</div>
+
+  {backendErr && (
+    <div style={{ color: "#ffb3b3" }}>
+      Error: {backendErr.error || JSON.stringify(backendErr)}
+    </div>
+  )}
+
+  {!backendData && !backendErr && <div>Waiting for frames...</div>}
+
+  {backendData && (
+    <>
+      <div>phone_detected: {String(backendData.phone_detected)}</div>
+      <div>phone_confidence: {Number(backendData.phone_confidence || 0).toFixed(2)}</div>
+
+      {"eyes_closed" in backendData && (
+        <div>eyes_closed: {String(backendData.eyes_closed)}</div>
+      )}
+
+      {backendData.tamagotchi && (
+        <>
+          <div style={{ marginTop: 6, fontWeight: "bold" }}>Tamagotchi</div>
+          <div>focus: {backendData.tamagotchi.focus}%</div>
+          <div>mood: {backendData.tamagotchi.mood}</div>
+          <div>status: {backendData.tamagotchi.last_status}</div>
+        </>
+      )}
+    </>
+  )}
+</div>
     </div>
   );
 }

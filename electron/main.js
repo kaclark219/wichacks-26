@@ -5,6 +5,7 @@ const isDev = process.env.ELECTRON_DEV === "1";
 const devUrl = process.env.ELECTRON_RENDERER_URL || "http://localhost:5173";
 const useTransparentWindow = process.env.ELECTRON_TRANSPARENT !== "0";
 const disableGpu = process.env.ELECTRON_DISABLE_GPU === "1";
+const FLASK_URL = process.env.FLASK_URL || "http://localhost:5050";
 
 if (disableGpu) {
     app.disableHardwareAcceleration();
@@ -22,6 +23,37 @@ ipcMain.handle("window-close", () => {
 
 ipcMain.on("timer-state-update", (event, state) => {
     console.log("Timer state received:", state);
+});
+
+// flask server analyze frame handler
+ipcMain.handle("analyze-frame", async (_event, payload) => {
+    // payload: { bytes: Uint8Array, mime: string, userId: string }
+    const { bytes, mime = "image/jpeg", userId = "default" } = payload || {};
+
+    if (!bytes || bytes.length === 0) {
+        return { ok: false, error: "No frame bytes provided" };
+    }
+
+    try {
+        const form = new FormData();
+        const blob = new Blob([bytes], { type: mime });
+        form.append("frame", blob, "frame.jpg");
+
+        const url = `${FLASK_URL}/api/analyze_frame?user_id=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, { method: "POST", body: form });
+
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = { raw: text };
+        }
+
+        return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+        return { ok: false, error: String(err) };
+    }
 });
 
 function createWindow() {
