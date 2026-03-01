@@ -49,7 +49,7 @@ def apply_observation(user_id: str, status: str, now_ts: float | None = None) ->
     ticks = int(dt_sec // TICK_SECONDS)
 
     if ticks > 0:
-        if st.last_status == "phone":
+        if st.last_status == "phone" or st.last_status == "idle":
             st.focus -= FOCUS_PHONE_LOSS_PER_TICK * ticks
         elif st.last_status == "sleep":
             st.focus -= FOCUS_SLEEP_LOSS_PER_TICK * ticks
@@ -63,7 +63,7 @@ def apply_observation(user_id: str, status: str, now_ts: float | None = None) ->
         st.mood = _mood_from_focus(st.focus)
 
     # set current status (used next call)
-    if status not in ("focused", "phone", "sleep"):
+    if status not in ("focused", "phone", "sleep", "idle"):
         status = "focused"
     st.last_status = status
 

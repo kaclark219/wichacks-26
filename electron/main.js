@@ -56,6 +56,27 @@ ipcMain.handle("analyze-frame", async (_event, payload) => {
     }
 });
 
+// keyboard mode ipc handler
+ipcMain.handle("send-observation", async (_event, payload) => {
+  const { userId = "default", status = "focused" } = payload || {};
+  const url = `${FLASK_URL}/api/observation`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, status }),
+    });
+
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+});
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1100,

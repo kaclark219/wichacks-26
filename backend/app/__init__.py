@@ -25,5 +25,8 @@ def create_app():
 
     from app.routes.tamagotchi import tamagotchi_bp
     app.register_blueprint(tamagotchi_bp)
+
+    from app.routes.observation import observation_bp
+    app.register_blueprint(observation_bp)
     
     return app

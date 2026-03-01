@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-Mood = Literal["happy", "content", "worried", "upset"]
+Mood = Literal["happy", "content", "worried", "upset", "idle"]
 Status = Literal["focused", "phone", "sleep"]
 
 @dataclass

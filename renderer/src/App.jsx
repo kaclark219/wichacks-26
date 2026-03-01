@@ -10,6 +10,7 @@ import toggleTransitionBtn from "./assets/toggle-transition.png";
 import timerBckgrnd from "./assets/timer.png";
 
 import { startWebcamAndAnalyze } from "./webcamTest";
+import { startActivityAndObserve } from "./activityTest";
 
 export default function App() {
   const [pong, setPong] = useState("");
@@ -33,6 +34,7 @@ export default function App() {
   const [backendErr, setBackendErr] = useState(null);
 
   const stopWebcamRef = useRef(null);
+  const stopModeRef = useRef(null);
 
   // button configs
   const getToggleImage = () => {
@@ -242,49 +244,59 @@ export default function App() {
   }, []);
 
 useEffect(() => {
-  const shouldAnalyze = timerRunning && currentPhase === "work";
+  const shouldRun = timerRunning && currentPhase === "work";
+  const mode = toggleState ? "camera" : "activity";
 
-  // If we should analyze and we're not already running -> start
-  if (shouldAnalyze && !stopWebcamRef.current) {
-    (async () => {
-      try {
-        const stopFn = await startWebcamAndAnalyze({
+  // stop any running mode if we shouldn't run
+  if (!shouldRun && stopModeRef.current) {
+    stopModeRef.current();
+    stopModeRef.current = null;
+    return;
+  }
+
+  // if should run but already running, do nothing (unless mode changed)
+  // easiest: always restart on dependency changes
+  if (stopModeRef.current) {
+    stopModeRef.current();
+    stopModeRef.current = null;
+  }
+
+  if (!shouldRun) return;
+
+  (async () => {
+    try {
+      if (mode === "camera") {
+        stopModeRef.current = await startWebcamAndAnalyze({
           userId: "demo",
           intervalMs: 1000,
+          onResult: (data) => { setBackendData(data); setBackendErr(null); },
+          onError: (err) => setBackendErr(err),
+        });
+      } else {
+        stopModeRef.current = startActivityAndObserve({
+          userId: "demo",
+          intervalMs: 1000,
+          idleThresholdMs: 15000,
           onResult: (data) => {
+            // data includes { status, idleMs, ok, tamagotchi... } depending on response
             setBackendData(data);
             setBackendErr(null);
           },
-          onError: (err) => {
-            setBackendErr(err);
-          },
+          onError: (err) => setBackendErr(err),
         });
-
-        stopWebcamRef.current = stopFn;
-      } catch (e) {
-        setBackendErr({ ok: false, error: String(e) });
       }
-    })();
-  }
+    } catch (e) {
+      setBackendErr({ ok: false, error: String(e) });
+    }
+  })();
 
-  // If we should NOT analyze and it IS running -> stop
-  if (!shouldAnalyze && stopWebcamRef.current) {
-    stopWebcamRef.current();        // stops the loop + releases camera
-    stopWebcamRef.current = null;
-  }
-
-  // Cleanup on unmount
   return () => {
-    if (stopWebcamRef.current) {
-      stopWebcamRef.current();
-      stopWebcamRef.current = null;
+    if (stopModeRef.current) {
+      stopModeRef.current();
+      stopModeRef.current = null;
     }
   };
-}, [timerRunning, currentPhase]);
-
-useEffect(() => {
-  console.log("window.api keys:", Object.keys(window.api || {}));
-}, []);
+}, [timerRunning, currentPhase, toggleState]);
 
 
 
@@ -442,12 +454,17 @@ useEffect(() => {
         <div>eyes_closed: {String(backendData.eyes_closed)}</div>
       )}
 
+      {"status" in (backendData || {}) && (
+  <div>activity_status: {backendData.status} (idle {Math.round((backendData.idleMs||0)/1000)}s)</div>
+)}
+
       {backendData.tamagotchi && (
         <>
           <div style={{ marginTop: 6, fontWeight: "bold" }}>Tamagotchi</div>
           <div>focus: {backendData.tamagotchi.focus}%</div>
           <div>mood: {backendData.tamagotchi.mood}</div>
           <div>status: {backendData.tamagotchi.last_status}</div>
+          <div>mode: {toggleState ? "camera" : "activity"}</div>
         </>
       )}
     </>
