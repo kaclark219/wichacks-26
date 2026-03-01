@@ -13,6 +13,9 @@ if (disableGpu) {
 }
 
 let mainWindow;
+let draggingWindow = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
 // global ipc handlers
 ipcMain.handle("window-close", () => {
@@ -23,6 +26,31 @@ ipcMain.handle("window-close", () => {
 
 ipcMain.on("timer-state-update", (event, state) => {
     console.log("Timer state received:", state);
+});
+
+ipcMain.on("window-drag-start", (_event, payload) => {
+    if (!mainWindow || !payload) return;
+    const { screenX, screenY } = payload;
+    if (typeof screenX !== "number" || typeof screenY !== "number") return;
+
+    const bounds = mainWindow.getBounds();
+    dragOffsetX = screenX - bounds.x;
+    dragOffsetY = screenY - bounds.y;
+    draggingWindow = true;
+});
+
+ipcMain.on("window-drag-update", (_event, payload) => {
+    if (!mainWindow || !draggingWindow || !payload) return;
+    const { screenX, screenY } = payload;
+    if (typeof screenX !== "number" || typeof screenY !== "number") return;
+
+    const nextX = Math.round(screenX - dragOffsetX);
+    const nextY = Math.round(screenY - dragOffsetY);
+    mainWindow.setPosition(nextX, nextY);
+});
+
+ipcMain.on("window-drag-end", () => {
+    draggingWindow = false;
 });
 
 // flask server analyze frame handler
