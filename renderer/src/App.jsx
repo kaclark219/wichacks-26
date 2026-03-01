@@ -788,6 +788,35 @@ useEffect(() => {
   )}
 </div>
 
+      {backendData?.tamagotchi?.focus !== undefined && (
+        <div
+          style={{
+            position: "fixed",
+            top: "280px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            height: 20,
+            width: "250px",
+            backgroundColor: "white",
+            borderRadius: 8,
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            zIndex: 5000,
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${backendData.tamagotchi.focus}%`,
+              backgroundColor: "#3b3579",
+              transition: "width 0.3s ease-out",
+              borderRadius: 8,
+            }}
+          />
+        </div>
+      )}
+
       {settingsMenuOpen && (
         <div
           style={{
