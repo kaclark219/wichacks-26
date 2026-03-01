@@ -9,6 +9,17 @@ import toggleOnBtn from "./assets/toggle-on.png";
 import toggleTransitionBtn from "./assets/toggle-transition.png";
 import timerBckgrnd from "./assets/timer.png";
 
+import spriteContent from "./assets/sprite/Content_Base.png";
+import spriteContentIdle from "./assets/sprite/Content_Idle.png";
+import spriteHappy from "./assets/sprite/Happy_Base.png";
+import spriteHappyIdle from "./assets/sprite/Happy_Idle.png";
+import spriteSad from "./assets/sprite/Sad_Base.png";
+import spriteSadIdle from "./assets/sprite/Sad_Idle.png";
+import spriteAngry from "./assets/sprite/Angry_Base.png";
+import spriteAngryIdle from "./assets/sprite/Angry_Idle.png";
+import spriteRelax from "./assets/sprite/Relax_Base.png";
+import spriteRelaxIdle from "./assets/sprite/Relax_Idle.png";
+
 export default function App() {
   const [pong, setPong] = useState("");
   const [shapeLoaded, setShapeLoaded] = useState(false);
@@ -26,6 +37,7 @@ export default function App() {
   const [breakDuration, setBreakDuration] = useState(5 * 60); // 5 mins
   const [timeRemaining, setTimeRemaining] = useState(25 * 60);
   const [cyclesCompleted, setCyclesCompleted] = useState(0);
+  const [spriteState, setSpriteState] = useState("base"); // "base" or "idle"
 
   // button configs
   const getToggleImage = () => {
@@ -215,6 +227,15 @@ export default function App() {
     }
   }, [timerRunning, currentPhase, timeRemaining, workDuration, breakDuration, cyclesCompleted]);
 
+  // idle animation effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSpriteState((prev) => (prev === "base" ? "idle" : "base"));
+    }, 1000); // toggle every 1 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const image = new Image();
     image.src = "./background.png";
@@ -326,6 +347,28 @@ export default function App() {
             ? "background image failed to load"
             : "loading background image..."}
         </div>
+      )}
+
+      {shapeLoaded && (
+        <img
+          src={
+            currentPhase === "work"
+              ? (spriteState === "base" ? spriteContent : spriteContentIdle)
+              : (spriteState === "base" ? spriteRelax : spriteRelaxIdle)
+          }
+          style={{
+            position: "absolute",
+            top: "45%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "200px",
+            height: "auto",
+            objectFit: "contain",
+            transition: "opacity 0.3s ease-in-out",
+            pointerEvents: "none",
+          }}
+          alt="character"
+        />
       )}
 
       {shapeLoaded && (
