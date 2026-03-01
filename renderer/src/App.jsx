@@ -785,6 +785,7 @@ useEffect(() => {
           </div>
         </div>
       )}
+      {/* Debug panel hidden
       <div
   style={{
     position: "absolute",
@@ -805,28 +806,23 @@ useEffect(() => {
 >
   <div style={{ fontWeight: "bold", marginBottom: 6 }}>Backend Debug</div>
   <div>audioReady: {String(audioReady)}</div>
-{audioErr && <div style={{ color: "#ffb3b3" }}>audioErr: {audioErr}</div>}
+  {audioErr && <div style={{ color: "#ffb3b3" }}>audioErr: {audioErr}</div>}
   {backendErr && (
     <div style={{ color: "#ffb3b3" }}>
       Error: {backendErr.error || JSON.stringify(backendErr)}
     </div>
   )}
-
   {!backendData && !backendErr && <div>Waiting for frames...</div>}
-
   {backendData && (
     <>
       <div>phone_detected: {String(backendData.phone_detected)}</div>
       <div>phone_confidence: {Number(backendData.phone_confidence || 0).toFixed(2)}</div>
-
       {"eyes_closed" in backendData && (
         <div>eyes_closed: {String(backendData.eyes_closed)}</div>
       )}
-
       {"status" in (backendData || {}) && (
-  <div>activity_status: {backendData.status} (idle {Math.round((backendData.idleMs||0)/1000)}s)</div>
-)}
-
+        <div>activity_status: {backendData.status} (idle {Math.round((backendData.idleMs||0)/1000)}s)</div>
+      )}
       {backendData.tamagotchi && (
         <>
           <div style={{ marginTop: 6, fontWeight: "bold" }}>Tamagotchi</div>
@@ -839,6 +835,36 @@ useEffect(() => {
     </>
   )}
 </div>
+      */}
+
+      {backendData?.tamagotchi?.focus !== undefined && (
+        <div
+          style={{
+            position: "fixed",
+            top: "280px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            height: 20,
+            width: "250px",
+            backgroundColor: "white",
+            borderRadius: 8,
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            zIndex: 5000,
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${backendData.tamagotchi.focus}%`,
+              backgroundColor: "#3b3579",
+              transition: "width 0.3s ease-out",
+              borderRadius: 8,
+            }}
+          />
+        </div>
+      )}
 
       {settingsMenuOpen && (
         <div

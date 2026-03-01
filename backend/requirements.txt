@@ -13,3 +13,5 @@ onnx==1.16.1
 requests==2.32.3
 
 mediapipe
+
+redis==5.0.1
