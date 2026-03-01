@@ -2,12 +2,12 @@ import time
 from app.models.state import TamagotchiState
 from app.services.storage import get_state, set_state
 
-FOCUS_START = 40.0
+FOCUS_START = 55.0
 TICK_SECONDS = 3.0
 
-FOCUS_GAIN_PER_TICK = 1.0 * (TICK_SECONDS / 300.0)          # 0.01
-FOCUS_PHONE_LOSS_PER_TICK = 5.0 * (TICK_SECONDS / 60.0)     # 0.25
-FOCUS_SLEEP_LOSS_PER_TICK = 10.0 * (TICK_SECONDS / 60.0)    # 0.5
+FOCUS_GAIN_PER_TICK = 100.0 * (TICK_SECONDS / 300.0)          # 0.5
+FOCUS_PHONE_LOSS_PER_TICK = 50.0 * (TICK_SECONDS / 60.0)     # 0.25
+FOCUS_SLEEP_LOSS_PER_TICK = 100.0 * (TICK_SECONDS / 60.0)    # 0.5
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
     return max(lo, min(hi, v))
