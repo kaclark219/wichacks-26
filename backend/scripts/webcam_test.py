@@ -64,11 +64,11 @@ def main():
 
         def put(line):
             nonlocal y
-            cv2.putText(frame, line, (12, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, line, (12, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (98, 240, 100), 2, cv2.LINE_AA)
             y += dy
 
         put(f"Capture FPS: {fps:.1f}")
-        put(f"POST interval: {SEND_EVERY_SEC:.1f}s (tamagotchi updates every 10s tick)")
+        put(f"POST interval: {SEND_EVERY_SEC:.1f}s")
 
         if last_result is None:
             put("Waiting for first response...")
