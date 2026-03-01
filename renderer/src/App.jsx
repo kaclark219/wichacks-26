@@ -24,6 +24,13 @@ import { startWebcamAndAnalyze } from "./webcamTest";
 import { startActivityAndObserve } from "./activityTest";
 
 export default function App() {
+  const audioCtxRef = useRef(null);
+  const sadBufferRef = useRef(null);
+  const sadSourceRef = useRef(null);
+  const sadGainRef = useRef(null);
+  const [audioReady, setAudioReady] = useState(false);
+  const [audioErr, setAudioErr] = useState(null);
+
   const [pong, setPong] = useState("");
   const [shapeLoaded, setShapeLoaded] = useState(false);
   const [shapeError, setShapeError] = useState(false);
@@ -48,6 +55,66 @@ export default function App() {
   const stopWebcamRef = useRef(null);
   const stopModeRef = useRef(null);
 
+  const ensureSadAudioReady = async () => {
+  try {
+    // 1) Create AudioContext + gain node once
+    if (!audioCtxRef.current) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioCtxRef.current = new AudioCtx();
+
+      sadGainRef.current = audioCtxRef.current.createGain();
+      sadGainRef.current.gain.value = 0.9; // volume
+      sadGainRef.current.connect(audioCtxRef.current.destination);
+    }
+
+    // 2) Unlock (must be called from a user gesture like your button click)
+    if (audioCtxRef.current.state !== "running") {
+      await audioCtxRef.current.resume();
+    }
+
+    // 3) Fetch + decode mp3 once
+    if (!sadBufferRef.current) {
+      const res = await fetch("http://localhost:5173/miaomiao.mp3");
+      const arr = await res.arrayBuffer();
+      sadBufferRef.current = await audioCtxRef.current.decodeAudioData(arr);
+    }
+
+    setAudioReady(true);
+    setAudioErr(null);
+    return true;
+  } catch (e) {
+    setAudioErr(e?.message ? `${e.name}: ${e.message}` : String(e));
+    return false;
+  }
+};
+
+const startSadLoop = async () => {
+  const ok = await ensureSadAudioReady();
+  if (!ok) return;
+
+  // already playing
+  if (sadSourceRef.current) return;
+
+  const ctx = audioCtxRef.current;
+
+  const src = ctx.createBufferSource();
+  src.buffer = sadBufferRef.current;
+  src.loop = true;
+  src.connect(sadGainRef.current);
+
+  src.start(0);
+  sadSourceRef.current = src;
+};
+
+const stopSadLoop = () => {
+  try {
+    if (sadSourceRef.current) {
+      sadSourceRef.current.stop(0);
+      sadSourceRef.current.disconnect();
+      sadSourceRef.current = null;
+    }
+  } catch {}
+};
   // button configs
   const getToggleImage = () => {
     if (toggleTransitioning) return toggleTransitionBtn;
@@ -138,6 +205,7 @@ export default function App() {
   };
 
   const handleButtonClick = (buttonId) => {
+    ensureSadAudioReady(); 
     switch (buttonId) {
       case "play":
         console.log("Play clicked");
@@ -275,8 +343,6 @@ useEffect(() => {
     return;
   }
 
-  // if should run but already running, do nothing (unless mode changed)
-  // easiest: always restart on dependency changes
   if (stopModeRef.current) {
     stopModeRef.current();
     stopModeRef.current = null;
@@ -319,7 +385,31 @@ useEffect(() => {
   };
 }, [timerRunning, currentPhase, toggleState]);
 
+useEffect(() => {
+  const mode = toggleState ? "camera" : "activity";
+  const status =
+    mode === "camera"
+      ? backendData?.tamagotchi?.last_status
+      : (backendData?.status ?? backendData?.tamagotchi?.last_status);
 
+  const BAD = new Set(["idle", "phone", "sleep"]);
+  const shouldPlay = BAD.has(status);
+
+  if (shouldPlay) startSadLoop();
+  else stopSadLoop();
+}, [backendData, toggleState]);
+
+useEffect(() => {
+  return () => {
+    stopSadLoop();
+    try {
+      audioCtxRef.current?.close();
+    } catch {}
+    audioCtxRef.current = null;
+    sadBufferRef.current = null;
+    sadGainRef.current = null;
+  };
+}, []);
 
   return (
     <div
@@ -487,7 +577,8 @@ useEffect(() => {
   }}
 >
   <div style={{ fontWeight: "bold", marginBottom: 6 }}>Backend Debug</div>
-
+  <div>audioReady: {String(audioReady)}</div>
+{audioErr && <div style={{ color: "#ffb3b3" }}>audioErr: {audioErr}</div>}
   {backendErr && (
     <div style={{ color: "#ffb3b3" }}>
       Error: {backendErr.error || JSON.stringify(backendErr)}
