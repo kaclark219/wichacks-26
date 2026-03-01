@@ -17,5 +17,8 @@
     "concurrently": "^9.0.0",
     "electron": "^31.0.0",
     "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.4"
   }
 }

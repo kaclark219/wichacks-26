@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
+const { uIOhook } = require("uiohook-napi");
 const path = require("path");
 
 const isDev = process.env.ELECTRON_DEV === "1";
@@ -53,6 +54,9 @@ ipcMain.on("window-drag-end", () => {
     draggingWindow = false;
 });
 
+ipcMain.handle("get-global-activity", () => {
+  return { lastGlobalActivity };
+});
 // flask server analyze frame handler
 ipcMain.handle("analyze-frame", async (_event, payload) => {
     // payload: { bytes: Uint8Array, mime: string, userId: string }
@@ -135,6 +139,26 @@ function createWindow() {
 
 app.whenReady().then(createWindow);
 
+let lastGlobalActivity = Date.now();
+
+function bumpActivity() {
+  lastGlobalActivity = Date.now();
+}
+
+// global activity events
+uIOhook.on("mousemove", bumpActivity);
+uIOhook.on("mousedown", bumpActivity);
+uIOhook.on("mouseup", bumpActivity);
+uIOhook.on("mousewheel", bumpActivity);
+uIOhook.on("keydown", bumpActivity);
+uIOhook.on("keyup", bumpActivity);
+
+uIOhook.start();
+
 app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
+});
+
+app.on("will-quit", () => {
+  try { uIOhook.stop(); } catch {}
 });

@@ -6,24 +6,15 @@ export function startActivityAndObserve({
   onError = () => {},
 } = {}) {
   let stopped = false;
-  let lastActivity = Date.now();
-
-  const mark = () => { lastActivity = Date.now(); };
-
-  // Track activity inside renderer window
-  window.addEventListener("keydown", mark);
-  window.addEventListener("mousedown", mark);
-  window.addEventListener("mousemove", mark, { passive: true });
-  window.addEventListener("wheel", mark, { passive: true });
-  window.addEventListener("touchstart", mark, { passive: true });
 
   async function tick() {
     if (stopped) return;
 
-    const idleMs = Date.now() - lastActivity;
-    const status = idleMs > idleThresholdMs ? "idle" : "focused";
-
     try {
+      const { lastGlobalActivity } = await window.api.getGlobalActivity();
+      const idleMs = Date.now() - lastGlobalActivity;
+      const status = idleMs > idleThresholdMs ? "idle" : "focused";
+
       const resp = await window.api.sendObservation({ userId, status });
       if (resp?.ok) onResult({ status, idleMs, ...resp.data });
       else onError(resp);
@@ -35,13 +26,5 @@ export function startActivityAndObserve({
   }
 
   tick();
-
-  return () => {
-    stopped = true;
-    window.removeEventListener("keydown", mark);
-    window.removeEventListener("mousedown", mark);
-    window.removeEventListener("mousemove", mark);
-    window.removeEventListener("wheel", mark);
-    window.removeEventListener("touchstart", mark);
-  };
+  return () => { stopped = true; };
 }

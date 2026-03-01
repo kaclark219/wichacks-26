@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld("api", {
     startWindowDrag: (payload) => ipcRenderer.send("window-drag-start", payload),
     updateWindowDrag: (payload) => ipcRenderer.send("window-drag-update", payload),
     endWindowDrag: () => ipcRenderer.send("window-drag-end"),
+    getGlobalActivity: () => ipcRenderer.invoke("get-global-activity"),
 });
