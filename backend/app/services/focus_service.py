@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from app.services.presage_realtime import get_presage_service
 from app.services.eye_service import get_eye_detector
+from app.services.phone_service import detect_phone
 
 # tries presage first, falls back to opencv is smartspectra memory crashes
 def compute_focus_score(img_bgr=None) -> Dict[str, Any]:
@@ -30,33 +31,38 @@ def compute_focus_score(img_bgr=None) -> Dict[str, Any]:
             "eligible_for_presage_category": True
         }
     
+    # OpenCV fallback: phone detection + eye detection
+    phone = detect_phone(img_bgr)
     detector = get_eye_detector()
-    result = detector.analyze(img_bgr)
+    eye = detector.analyze(img_bgr)
 
-    if result["face_present"]:
-        if result["eyes_closed"]:
-            focus = 0.2
-        else:
-            ear = result.get("ear", 0.3)
-            focus = min(1.0, ear / 0.3) if ear else 0.5
-        
-        return {
-            "focus_score": float(focus),
-            "method": "smartspectra",
-            "details": {
-                "face_detected": True,
-                "eyes_closed": result["eyes_closed"],
-                "confidence": 0.92
-            },
-            "eligible_for_presage_category": True
-        }
+    phone_detected = bool(phone["phone_detected"])
+    eyes_closed = bool(eye["eyes_closed"])
+
+    # Determine focus score based on status priority: phone > sleep > focused
+    if phone_detected:
+        focus = 0.0
+        status = "phone"
+    elif eyes_closed:
+        focus = 0.1
+        status = "sleep"
+    elif eye["face_present"]:
+        ear = eye.get("ear", 0.3)
+        focus = min(1.0, ear / 0.3) if ear else 0.5
+        status = "focused"
+    else:
+        focus = 0.0
+        status = "unknown"
 
     return {
-        "focus_score": 0.0,
+        "focus_score": float(focus),
         "method": "fallback",
+        "status": status,
         "details": {
-            "face_detected": False,
-            "reason": "SmartSpectra could not detect face in frame"
+            "face_detected": eye["face_present"],
+            "eyes_closed": eyes_closed,
+            "phone_detected": phone_detected,
+            "reason": "Using OpenCV fallback due to presage unavailable"
         },
         "eligible_for_presage_category": False
     }
