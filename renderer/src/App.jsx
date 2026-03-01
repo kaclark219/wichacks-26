@@ -9,6 +9,17 @@ import toggleOnBtn from "./assets/toggle-on.png";
 import toggleTransitionBtn from "./assets/toggle-transition.png";
 import timerBckgrnd from "./assets/timer.png";
 
+// high contrast/monochromatic color blindness friendly assets
+import monoPlayBtn from "./assets/mono-play-btn.PNG";
+import monoPauseBtn from "./assets/mono-pause-btn.PNG";
+import monoStopBtn from "./assets/mono-stop-btn.PNG";
+import monoSettingsBtn from "./assets/mono-settings.PNG";
+import monoCloseBtn from "./assets/mono-close.PNG";
+import monoToggleOffBtn from "./assets/mono-toggle-off.PNG";
+import monoToggleOnBtn from "./assets/mono-toggle-on.PNG";
+import monoToggleTransitionBtn from "./assets/mono-toggle-transition.PNG";
+import monoTimerBckgrnd from "./assets/mono-timer.PNG";
+
 import spriteContent from "./assets/sprite/Content_Base.png";
 import spriteContentIdle from "./assets/sprite/Content_Idle.png";
 import spriteHappy from "./assets/sprite/Happy_Base.png";
@@ -19,6 +30,15 @@ import spriteAngry from "./assets/sprite/Angry_Base.png";
 import spriteAngryIdle from "./assets/sprite/Angry_Idle.png";
 import spriteRelax from "./assets/sprite/Relax_Base.png";
 import spriteRelaxIdle from "./assets/sprite/Relax_Idle.png";
+
+import settingsBackground from "./assets/settings/settings-background.PNG";
+import settingsCloseBtn from "./assets/settings/settings-close.PNG";
+import topCheckBtn from "./assets/settings/top-check.PNG";
+import topUncheckBtn from "./assets/settings/top-uncheck.PNG";
+import middleCheckBtn from "./assets/settings/middle-check.PNG";
+import middleUncheckBtn from "./assets/settings/middle-uncheck.PNG";
+import bottomCheckBtn from "./assets/settings/bottom-check.PNG";
+import bottomUncheckBtn from "./assets/settings/bottom-uncheck.PNG";
 
 import { startWebcamAndAnalyze } from "./webcamTest";
 import { startActivityAndObserve } from "./activityTest";
@@ -48,6 +68,13 @@ export default function App() {
   const [timeRemaining, setTimeRemaining] = useState(25 * 60);
   const [cyclesCompleted, setCyclesCompleted] = useState(0);
   const [spriteState, setSpriteState] = useState("base"); // "base" or "idle"
+
+  // settings menu state
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [highContrastMode, setHighContrastMode] = useState(false);
+  const [lowMotionMode, setLowMotionMode] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [settingsButtonCanvases, setSettingsButtonCanvases] = useState({});
 
   const [backendData, setBackendData] = useState(null);
   const [backendErr, setBackendErr] = useState(null);
@@ -117,18 +144,22 @@ const stopSadLoop = () => {
 };
   // button configs
   const getToggleImage = () => {
-    if (toggleTransitioning) return toggleTransitionBtn;
-    return toggleState ? toggleOnBtn : toggleOffBtn;
+    const offImg = highContrastMode ? monoToggleOffBtn : toggleOffBtn;
+    const onImg = highContrastMode ? monoToggleOnBtn : toggleOnBtn;
+    const transitionImg = highContrastMode ? monoToggleTransitionBtn : toggleTransitionBtn;
+    
+    if (toggleTransitioning) return transitionImg;
+    return toggleState ? onImg : offImg;
   };
 
   const buttonConfigs = [
-    { id: "play", image: playBtn },
-    { id: "pause", image: pauseBtn },
-    { id: "stop", image: stopBtn },
-    { id: "settings", image: settingsBtn },
-    { id: "close", image: closeBtn },
+    { id: "play", image: highContrastMode ? monoPlayBtn : playBtn },
+    { id: "pause", image: highContrastMode ? monoPauseBtn : pauseBtn },
+    { id: "stop", image: highContrastMode ? monoStopBtn : stopBtn },
+    { id: "settings", image: highContrastMode ? monoSettingsBtn : settingsBtn },
+    { id: "close", image: highContrastMode ? monoCloseBtn : closeBtn },
     { id: "toggle", image: getToggleImage() },
-    { id: "timer", image: timerBckgrnd },
+    { id: "timer", image: highContrastMode ? monoTimerBckgrnd : timerBckgrnd },
   ];
 
   // smart pixel detection logic
@@ -152,7 +183,7 @@ const stopSadLoop = () => {
         }
       };
     });
-  }, [toggleState, toggleTransitioning]);
+  }, [toggleState, toggleTransitioning, highContrastMode]);
 
   const isPixelVisible = (buttonId, clientX, clientY, imgElement) => {
     const btnData = buttonCanvases[buttonId];
@@ -237,6 +268,7 @@ const stopSadLoop = () => {
         break;
       case "settings":
         console.log("Settings clicked");
+        setSettingsMenuOpen(true);
         break;
       case "close":
         console.log("Close clicked");
@@ -244,11 +276,16 @@ const stopSadLoop = () => {
         break;
       case "toggle":
         console.log("Toggle clicked");
-        setToggleTransitioning(true);
-        setTimeout(() => {
-          setToggleState(!toggleState);
+        if (lowMotionMode) {
           setToggleTransitioning(false);
-        }, 200);
+          setToggleState(!toggleState);
+        } else {
+          setToggleTransitioning(true);
+          setTimeout(() => {
+            setToggleState(!toggleState);
+            setToggleTransitioning(false);
+          }, 200);
+        }
         break;
       default:
         break;
@@ -306,16 +343,111 @@ const stopSadLoop = () => {
 
   // idle animation effect
   useEffect(() => {
+    if (lowMotionMode) {
+      setSpriteState("idle");
+      return;
+    }
+    
     const interval = setInterval(() => {
       setSpriteState((prev) => (prev === "base" ? "idle" : "base"));
     }, 1000); // toggle every 1 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [lowMotionMode]);
+
+  // load settings button canvases for pixel detection
+  useEffect(() => {
+    if (!settingsMenuOpen) return;
+    
+    const canvases = {};
+    let loaded = 0;
+    const settingsButtons = [
+      { id: "settings-close", image: settingsCloseBtn },
+      { id: "settings-top", image: highContrastMode ? topCheckBtn : topUncheckBtn },
+      { id: "settings-middle", image: lowMotionMode ? middleCheckBtn : middleUncheckBtn },
+      { id: "settings-bottom", image: soundEnabled ? bottomCheckBtn : bottomUncheckBtn },
+    ];
+    
+    settingsButtons.forEach((btn) => {
+      const img = new Image();
+      img.src = btn.image;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        canvases[btn.id] = { canvas, ctx, width: img.naturalWidth, height: img.naturalHeight };
+        loaded++;
+        if (loaded === settingsButtons.length) {
+          setSettingsButtonCanvases(canvases);
+        }
+      };
+    });
+  }, [settingsMenuOpen, highContrastMode, lowMotionMode, soundEnabled]);
+
+  const isSettingsPixelVisible = (buttonId, clientX, clientY, imgElement) => {
+    const btnData = settingsButtonCanvases[buttonId];
+    if (!btnData) return false;
+
+    const rect = imgElement.getBoundingClientRect();
+    const { canvas, ctx, width: imgWidth, height: imgHeight } = btnData;
+
+    const containerW = rect.width;
+    const containerH = rect.height;
+    const imageRatio = imgWidth / imgHeight;
+    const containerRatio = containerW / containerH;
+
+    let renderedW, renderedH, offsetX, offsetY;
+
+    if (imageRatio > containerRatio) {
+      renderedW = containerW;
+      renderedH = containerW / imageRatio;
+      offsetX = 0;
+      offsetY = (containerH - renderedH) / 2;
+    } else {
+      renderedH = containerH;
+      renderedW = containerH * imageRatio;
+      offsetX = (containerW - renderedW) / 2;
+      offsetY = 0;
+    }
+
+    const x = clientX - rect.left - offsetX;
+    const y = clientY - rect.top - offsetY;
+
+    if (x < 0 || x > renderedW || y < 0 || y > renderedH) return false;
+
+    const imageX = Math.floor((x / renderedW) * imgWidth);
+    const imageY = Math.floor((y / renderedH) * imgHeight);
+
+    const pixel = ctx.getImageData(imageX, imageY, 1, 1).data;
+    return pixel[3] > 10;
+  };
+
+  const handleSettingsButtonClick = (buttonId) => {
+    switch (buttonId) {
+      case "settings-close":
+        setSettingsMenuOpen(false);
+        break;
+      case "settings-top":
+        setHighContrastMode(!highContrastMode);
+        break;
+      case "settings-middle":
+        setLowMotionMode(!lowMotionMode);
+        break;
+      case "settings-bottom":
+        setSoundEnabled(!soundEnabled);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const mainBackgroundImage = highContrastMode ? "./mono-background.PNG" : "./background.png";
 
   useEffect(() => {
     const image = new Image();
-    image.src = "./background.png";
+    image.src = mainBackgroundImage;
 
     image.onload = () => {
       setShapeLoaded(true);
@@ -330,7 +462,7 @@ const stopSadLoop = () => {
       image.onload = null;
       image.onerror = null;
     };
-  }, []);
+  }, [mainBackgroundImage]);
 
 useEffect(() => {
   const shouldRun = timerRunning && currentPhase === "work";
@@ -420,7 +552,7 @@ useEffect(() => {
         padding: 0,
         boxSizing: "border-box",
         backgroundColor: "transparent",
-        backgroundImage: shapeLoaded ? "url('./background.png')" : "none",
+        backgroundImage: shapeLoaded ? `url('${mainBackgroundImage}')` : "none",
         backgroundSize: "contain",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -442,11 +574,11 @@ useEffect(() => {
             objectFit: "contain",
             objectPosition: "center",
             pointerEvents: "none",
-            ...(btn.id !== "timer" && hoveredButton === btn.id && {
+            ...(!lowMotionMode && btn.id !== "timer" && hoveredButton === btn.id && {
               transform: "scale(1.05)",
               transition: "transform 0.2s ease-out",
             }),
-            ...(btn.id !== "timer" && hoveredButton !== btn.id && {
+            ...(!lowMotionMode && btn.id !== "timer" && hoveredButton !== btn.id && {
               transition: "transform 0.2s ease-out",
             }),
           }}
@@ -510,15 +642,15 @@ useEffect(() => {
           src={
             currentPhase === "work"
               ? backendData?.tamagotchi?.mood === "happy"
-                ? (spriteState === "base" ? spriteHappy : spriteHappyIdle)
+                ? ((lowMotionMode ? "idle" : spriteState) === "base" ? spriteHappy : spriteHappyIdle)
                 : backendData?.tamagotchi?.mood === "content"
-                ? (spriteState === "base" ? spriteContent : spriteContentIdle)
+                ? ((lowMotionMode ? "idle" : spriteState) === "base" ? spriteContent : spriteContentIdle)
                 : backendData?.tamagotchi?.mood === "worried"
-                ? (spriteState === "base" ? spriteSad : spriteSadIdle)
+                ? ((lowMotionMode ? "idle" : spriteState) === "base" ? spriteSad : spriteSadIdle)
                 : backendData?.tamagotchi?.mood === "upset"
-                ? (spriteState === "base" ? spriteAngry : spriteAngryIdle)
-                : (spriteState === "base" ? spriteContent : spriteContentIdle)
-              : (spriteState === "base" ? spriteRelax : spriteRelaxIdle)
+                ? ((lowMotionMode ? "idle" : spriteState) === "base" ? spriteAngry : spriteAngryIdle)
+                : ((lowMotionMode ? "idle" : spriteState) === "base" ? spriteContent : spriteContentIdle)
+              : ((lowMotionMode ? "idle" : spriteState) === "base" ? spriteRelax : spriteRelaxIdle)
           }
           style={{
             position: "absolute",
@@ -528,7 +660,7 @@ useEffect(() => {
             width: "200px",
             height: "auto",
             objectFit: "contain",
-            transition: "opacity 0.3s ease-in-out",
+            transition: lowMotionMode ? "none" : "opacity 0.3s ease-in-out",
             pointerEvents: "none",
           }}
           alt="character"
@@ -612,6 +744,179 @@ useEffect(() => {
     </>
   )}
 </div>
+
+      {settingsMenuOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            WebkitAppRegion: "no-drag",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: "80%",
+              height: "80%",
+              maxWidth: "800px",
+              maxHeight: "600px",
+            }}
+          >
+            <img
+              src={settingsBackground}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                pointerEvents: "none",
+              }}
+              alt="settings-background"
+            />
+            
+            <img
+              id="settings-close"
+              src={settingsCloseBtn}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                pointerEvents: "none",
+              }}
+              alt="settings-close"
+            />
+            
+            <img
+              id="settings-top"
+              src={highContrastMode ? topCheckBtn : topUncheckBtn}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                pointerEvents: "none",
+              }}
+              alt="top-checkbox"
+            />
+            
+            <img
+              id="settings-middle"
+              src={lowMotionMode ? middleCheckBtn : middleUncheckBtn}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                pointerEvents: "none",
+              }}
+              alt="middle-checkbox"
+            />
+            
+            <img
+              id="settings-bottom"
+              src={soundEnabled ? bottomCheckBtn : bottomUncheckBtn}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                pointerEvents: "none",
+              }}
+              alt="bottom-checkbox"
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                top: "39%",
+                left: "40%",
+                color: "white",
+                fontSize: "18px",
+                fontWeight: 700,
+                pointerEvents: "none",
+                userSelect: "none",
+              }}
+            >
+              High Contrast Mode
+            </div>
+
+            <div
+              style={{
+                position: "absolute",
+                top: "51%",
+                left: "40%",
+                color: "white",
+                fontSize: "18px",
+                fontWeight: 700,
+                pointerEvents: "none",
+                userSelect: "none",
+              }}
+            >
+              Low Motion Mode
+            </div>
+
+            <div
+              style={{
+                position: "absolute",
+                top: "64%",
+                left: "40%",
+                color: "white",
+                fontSize: "18px",
+                fontWeight: 700,
+                pointerEvents: "none",
+                userSelect: "none",
+              }}
+            >
+              Sound On/Off
+            </div>
+            
+            <div
+              onClick={(e) => {
+                const buttons = ["settings-close", "settings-top", "settings-middle", "settings-bottom"];
+                for (const btnId of buttons.reverse()) {
+                  const imgElement = document.getElementById(btnId);
+                  if (imgElement && isSettingsPixelVisible(btnId, e.clientX, e.clientY, imgElement)) {
+                    handleSettingsButtonClick(btnId);
+                    return;
+                  }
+                }
+              }}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                cursor: "pointer",
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
