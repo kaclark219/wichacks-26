@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import playBtn from "./assets/play-btn.png";
 import pauseBtn from "./assets/pause-btn.png";
 import stopBtn from "./assets/stop-btn.png";
@@ -20,6 +20,9 @@ import spriteAngryIdle from "./assets/sprite/Angry_Idle.png";
 import spriteRelax from "./assets/sprite/Relax_Base.png";
 import spriteRelaxIdle from "./assets/sprite/Relax_Idle.png";
 
+import { startWebcamAndAnalyze } from "./webcamTest";
+import { startActivityAndObserve } from "./activityTest";
+
 export default function App() {
   const [pong, setPong] = useState("");
   const [shapeLoaded, setShapeLoaded] = useState(false);
@@ -38,6 +41,12 @@ export default function App() {
   const [timeRemaining, setTimeRemaining] = useState(25 * 60);
   const [cyclesCompleted, setCyclesCompleted] = useState(0);
   const [spriteState, setSpriteState] = useState("base"); // "base" or "idle"
+
+  const [backendData, setBackendData] = useState(null);
+  const [backendErr, setBackendErr] = useState(null);
+
+  const stopWebcamRef = useRef(null);
+  const stopModeRef = useRef(null);
 
   // button configs
   const getToggleImage = () => {
@@ -255,6 +264,63 @@ export default function App() {
     };
   }, []);
 
+useEffect(() => {
+  const shouldRun = timerRunning && currentPhase === "work";
+  const mode = toggleState ? "camera" : "activity";
+
+  // stop any running mode if we shouldn't run
+  if (!shouldRun && stopModeRef.current) {
+    stopModeRef.current();
+    stopModeRef.current = null;
+    return;
+  }
+
+  // if should run but already running, do nothing (unless mode changed)
+  // easiest: always restart on dependency changes
+  if (stopModeRef.current) {
+    stopModeRef.current();
+    stopModeRef.current = null;
+  }
+
+  if (!shouldRun) return;
+
+  (async () => {
+    try {
+      if (mode === "camera") {
+        stopModeRef.current = await startWebcamAndAnalyze({
+          userId: "demo",
+          intervalMs: 1000,
+          onResult: (data) => { setBackendData(data); setBackendErr(null); },
+          onError: (err) => setBackendErr(err),
+        });
+      } else {
+        stopModeRef.current = startActivityAndObserve({
+          userId: "demo",
+          intervalMs: 1000,
+          idleThresholdMs: 15000,
+          onResult: (data) => {
+            // data includes { status, idleMs, ok, tamagotchi... } depending on response
+            setBackendData(data);
+            setBackendErr(null);
+          },
+          onError: (err) => setBackendErr(err),
+        });
+      }
+    } catch (e) {
+      setBackendErr({ ok: false, error: String(e) });
+    }
+  })();
+
+  return () => {
+    if (stopModeRef.current) {
+      stopModeRef.current();
+      stopModeRef.current = null;
+    }
+  };
+}, [timerRunning, currentPhase, toggleState]);
+
+
+
   return (
     <div
       style={{
@@ -394,6 +460,59 @@ export default function App() {
           </div>
         </div>
       )}
+      <div
+  style={{
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    width: 360,
+    background: "rgba(0,0,0,0.65)",
+    color: "white",
+    padding: 12,
+    borderRadius: 10,
+    fontFamily: "monospace",
+    fontSize: 12,
+    lineHeight: 1.4,
+    zIndex: 9999,
+    WebkitAppRegion: "no-drag",
+    pointerEvents: "none",
+  }}
+>
+  <div style={{ fontWeight: "bold", marginBottom: 6 }}>Backend Debug</div>
+
+  {backendErr && (
+    <div style={{ color: "#ffb3b3" }}>
+      Error: {backendErr.error || JSON.stringify(backendErr)}
+    </div>
+  )}
+
+  {!backendData && !backendErr && <div>Waiting for frames...</div>}
+
+  {backendData && (
+    <>
+      <div>phone_detected: {String(backendData.phone_detected)}</div>
+      <div>phone_confidence: {Number(backendData.phone_confidence || 0).toFixed(2)}</div>
+
+      {"eyes_closed" in backendData && (
+        <div>eyes_closed: {String(backendData.eyes_closed)}</div>
+      )}
+
+      {"status" in (backendData || {}) && (
+  <div>activity_status: {backendData.status} (idle {Math.round((backendData.idleMs||0)/1000)}s)</div>
+)}
+
+      {backendData.tamagotchi && (
+        <>
+          <div style={{ marginTop: 6, fontWeight: "bold" }}>Tamagotchi</div>
+          <div>focus: {backendData.tamagotchi.focus}%</div>
+          <div>mood: {backendData.tamagotchi.mood}</div>
+          <div>status: {backendData.tamagotchi.last_status}</div>
+          <div>mode: {toggleState ? "camera" : "activity"}</div>
+        </>
+      )}
+    </>
+  )}
+</div>
     </div>
   );
 }
