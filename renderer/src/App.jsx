@@ -89,6 +89,65 @@ export default function App() {
 
   const stopWebcamRef = useRef(null);
   const stopModeRef = useRef(null);
+  const settingsModalRef = useRef(null);
+  const focusedButtonRef = useRef(null);
+  const [focusedButton, setFocusedButton] = useState(null);
+  const [showFocusIndicator, setShowFocusIndicator] = useState(false);
+
+  // Keyboard navigation support
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Escape closes settings
+      if (e.key === "Escape" && settingsMenuOpen) {
+        e.preventDefault();
+        setSettingsMenuOpen(false);
+        return;
+      }
+
+      // Keyboard shortcuts for buttons when settings not open
+      if (settingsMenuOpen) return;
+
+      const keyMap = {
+        " ": "play",
+        "Enter": "play",
+        "p": "play",
+        "P": "play",
+        "m": "pause",
+        "M": "pause",
+        "s": "stop",
+        "S": "stop",
+        "?": "settings",
+        "/": "settings",
+        "t": "toggle",
+        "T": "toggle",
+        "q": "close",
+        "Q": "close",
+      };
+
+      const buttonToActivate = keyMap[e.key];
+      if (buttonToActivate) {
+        e.preventDefault();
+        handleButtonClick(buttonToActivate);
+      }
+
+      // Tab key for focus indication
+      if (e.key === "Tab") {
+        setShowFocusIndicator(true);
+      }
+    };
+
+    const handleMouseDown = () => {
+      setShowFocusIndicator(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [settingsMenuOpen]);
 
   const ensureAudioReady = async () => {
   try {
@@ -644,7 +703,10 @@ useEffect(() => {
 }, []);
 
   return (
-    <div
+    <main
+      id="main-content"
+      role="application"
+      aria-label="Pomochi - Focus monitoring tamagotchi"
       style={{
         width: "100%",
         height: "100%",
@@ -689,6 +751,9 @@ useEffect(() => {
 
       {shapeLoaded && (
         <div
+          ref={focusedButtonRef}
+          role="region"
+          aria-label="Application controls: Use keyboard shortcuts SPACE/Enter for play, M for pause, S for stop, T for toggle mode, / for settings, Q to close, ESC to close settings"
           onClick={handleContainerClick}
           onMouseDown={handleContainerMouseDown}
           onMouseMove={handleContainerMouseMove}
@@ -698,6 +763,7 @@ useEffect(() => {
             setIsOverInteractiveButton(false);
             stopBackgroundDragging();
           }}
+          tabIndex={0}
           style={{
             position: "absolute",
             top: 0,
@@ -706,6 +772,8 @@ useEffect(() => {
             height: "100%",
             cursor: isDraggingBackground ? "grabbing" : isOverInteractiveButton ? "pointer" : "grab",
             WebkitAppRegion: "no-drag",
+            outline: showFocusIndicator && focusedButton !== null ? "3px solid #4a90e2" : "none",
+            outlineOffset: "2px",
           }}
         />
       )}
@@ -761,6 +829,24 @@ useEffect(() => {
           alt={characterAlt}
         />
       )}
+
+      {/* Live region for screen reader announcements */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          width: "1px",
+          height: "1px",
+          overflow: "hidden",
+        }}
+      >
+        Focus: {backendData?.tamagotchi?.focus ?? 0}%. Mood: {backendData?.tamagotchi?.mood ?? "unknown"}. 
+        Status: {backendData?.tamagotchi?.last_status ?? "unknown"}. 
+        Timer: {currentPhase === "work" ? "Work" : "Break"} phase - {formatTime(timeRemaining)}.
+      </div>
 
       {shapeLoaded && (
         <div
@@ -868,6 +954,18 @@ useEffect(() => {
 
       {settingsMenuOpen && (
         <div
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSettingsMenuOpen(false);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setSettingsMenuOpen(false);
+            }
+          }}
           style={{
             position: "fixed",
             top: 0,
@@ -883,6 +981,11 @@ useEffect(() => {
           }}
         >
           <div
+            ref={settingsModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+            tabIndex={-1}
             style={{
               position: "relative",
               width: "80%",
@@ -909,6 +1012,15 @@ useEffect(() => {
             <img
               id="settings-close"
               src={settingsCloseBtn}
+              role="button"
+              aria-label="Close settings"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSettingsMenuOpen(false);
+                }
+              }}
               style={{
                 position: "absolute",
                 top: 0,
@@ -917,14 +1029,25 @@ useEffect(() => {
                 height: "100%",
                 objectFit: "contain",
                 objectPosition: "center",
-                pointerEvents: "none",
+                pointerEvents: "auto",
+                cursor: "pointer",
               }}
-              alt="settings-close"
+              alt="close-settings-button"
             />
             
             <img
               id="settings-top"
               src={highContrastMode ? topCheckBtn : topUncheckBtn}
+              role="checkbox"
+              aria-labelledby="high-contrast-label"
+              aria-checked={highContrastMode}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setHighContrastMode(!highContrastMode);
+                }
+              }}
               style={{
                 position: "absolute",
                 top: 0,
@@ -933,14 +1056,25 @@ useEffect(() => {
                 height: "100%",
                 objectFit: "contain",
                 objectPosition: "center",
-                pointerEvents: "none",
+                pointerEvents: "auto",
+                cursor: "pointer",
               }}
-              alt="top-checkbox"
+              alt="high-contrast-mode-checkbox"
             />
             
             <img
               id="settings-middle"
               src={lowMotionMode ? middleCheckBtn : middleUncheckBtn}
+              role="checkbox"
+              aria-labelledby="low-motion-label"
+              aria-checked={lowMotionMode}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setLowMotionMode(!lowMotionMode);
+                }
+              }}
               style={{
                 position: "absolute",
                 top: 0,
@@ -949,14 +1083,25 @@ useEffect(() => {
                 height: "100%",
                 objectFit: "contain",
                 objectPosition: "center",
-                pointerEvents: "none",
+                pointerEvents: "auto",
+                cursor: "pointer",
               }}
-              alt="middle-checkbox"
+              alt="low-motion-mode-checkbox"
             />
             
             <img
               id="settings-bottom"
               src={soundEnabled ? bottomCheckBtn : bottomUncheckBtn}
+              role="checkbox"
+              aria-labelledby="sound-label"
+              aria-checked={soundEnabled}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSoundEnabled(!soundEnabled);
+                }
+              }}
               style={{
                 position: "absolute",
                 top: 0,
@@ -965,12 +1110,31 @@ useEffect(() => {
                 height: "100%",
                 objectFit: "contain",
                 objectPosition: "center",
-                pointerEvents: "none",
+                pointerEvents: "auto",
+                cursor: "pointer",
               }}
-              alt="bottom-checkbox"
+              alt="sound-checkbox"
             />
 
             <div
+              id="settings-title"
+              style={{
+                position: "absolute",
+                top: "10%",
+                left: "40%",
+                color: "white",
+                fontSize: "24px",
+                fontWeight: 700,
+                pointerEvents: "none",
+                userSelect: "none",
+                display: "none",
+              }}
+            >
+              Settings
+            </div>
+
+            <div
+              id="high-contrast-label"
               style={{
                 position: "absolute",
                 top: "39%",
@@ -986,6 +1150,7 @@ useEffect(() => {
             </div>
 
             <div
+              id="low-motion-label"
               style={{
                 position: "absolute",
                 top: "51%",
@@ -1001,6 +1166,7 @@ useEffect(() => {
             </div>
 
             <div
+              id="sound-label"
               style={{
                 position: "absolute",
                 top: "64%",
@@ -1038,6 +1204,6 @@ useEffect(() => {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
