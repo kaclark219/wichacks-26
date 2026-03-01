@@ -59,6 +59,8 @@ export default function App() {
   const [toggleTransitioning, setToggleTransitioning] = useState(false);
   const [buttonCanvases, setButtonCanvases] = useState({});
   const [hoveredButton, setHoveredButton] = useState(null);
+  const [isOverInteractiveButton, setIsOverInteractiveButton] = useState(false);
+  const [isDraggingBackground, setIsDraggingBackground] = useState(false);
 
   // pomodoro timer state
   const [timerRunning, setTimerRunning] = useState(false);
@@ -223,16 +225,58 @@ const stopSadLoop = () => {
     return pixel[3] > 10;
   };
 
-  const handleContainerClick = (event) => {
-    // checking each button z pos
+  const interactiveButtonIds = new Set(["play", "pause", "stop", "settings", "close", "toggle"]);
+
+  const findButtonAtPoint = (clientX, clientY, interactiveOnly = false) => {
     for (let i = buttonConfigs.length - 1; i >= 0; i--) {
       const btn = buttonConfigs[i];
       const imgElement = document.getElementById(`btn-${btn.id}`);
-      if (imgElement && isPixelVisible(btn.id, event.clientX, event.clientY, imgElement)) {
-        handleButtonClick(btn.id);
-        return;
-      }
+      if (!imgElement || !isPixelVisible(btn.id, clientX, clientY, imgElement)) continue;
+      if (interactiveOnly && !interactiveButtonIds.has(btn.id)) continue;
+      return btn.id;
     }
+    return null;
+  };
+
+  const handleContainerClick = (event) => {
+    const buttonId = findButtonAtPoint(event.clientX, event.clientY, true);
+    if (buttonId) {
+      handleButtonClick(buttonId);
+    }
+  };
+
+  const handleContainerMouseDown = (event) => {
+    if (settingsMenuOpen) return;
+    const buttonId = findButtonAtPoint(event.clientX, event.clientY, true);
+    if (buttonId) return;
+
+    setHoveredButton(null);
+    setIsOverInteractiveButton(false);
+    setIsDraggingBackground(true);
+    window.api?.startWindowDrag?.({ screenX: event.screenX, screenY: event.screenY });
+  };
+
+  const handleContainerMouseMove = (event) => {
+    if (isDraggingBackground) {
+      window.api?.updateWindowDrag?.({ screenX: event.screenX, screenY: event.screenY });
+      return;
+    }
+
+    const interactiveButtonId = findButtonAtPoint(event.clientX, event.clientY, true);
+    setIsOverInteractiveButton(Boolean(interactiveButtonId));
+
+    if (interactiveButtonId && interactiveButtonId !== "toggle") {
+      setHoveredButton(interactiveButtonId);
+      return;
+    }
+
+    setHoveredButton(null);
+  };
+
+  const stopBackgroundDragging = () => {
+    if (!isDraggingBackground) return;
+    setIsDraggingBackground(false);
+    window.api?.endWindowDrag?.();
   };
 
   const handleButtonClick = (buttonId) => {
@@ -590,26 +634,21 @@ useEffect(() => {
       {shapeLoaded && (
         <div
           onClick={handleContainerClick}
-          onMouseMove={(e) => {
-            for (let i = buttonConfigs.length - 1; i >= 0; i--) {
-              const btn = buttonConfigs[i];
-              if (btn.id === "timer" || btn.id === "toggle") continue;
-              const imgElement = document.getElementById(`btn-${btn.id}`);
-              if (imgElement && isPixelVisible(btn.id, e.clientX, e.clientY, imgElement)) {
-                setHoveredButton(btn.id);
-                return;
-              }
-            }
+          onMouseDown={handleContainerMouseDown}
+          onMouseMove={handleContainerMouseMove}
+          onMouseUp={stopBackgroundDragging}
+          onMouseLeave={() => {
             setHoveredButton(null);
+            setIsOverInteractiveButton(false);
+            stopBackgroundDragging();
           }}
-          onMouseLeave={() => setHoveredButton(null)}
           style={{
             position: "absolute",
             top: 0,
             left: 0,
             width: "100%",
             height: "100%",
-            cursor: "pointer",
+            cursor: isDraggingBackground ? "grabbing" : isOverInteractiveButton ? "pointer" : "grab",
             WebkitAppRegion: "no-drag",
           }}
         />
