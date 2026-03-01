@@ -145,7 +145,7 @@ def get_phone_detector() -> PhoneDetector:
     global _detector
     if _detector is None:
         BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        DEFAULT_MODEL_PATH = os.path.join(BACKEND_ROOT, "models", "yolov8n.onnx")
+        DEFAULT_MODEL_PATH = os.path.join(BACKEND_ROOT, "app", "models", "yolov8n.onnx")
 
         model_path = os.environ.get("PHONE_MODEL_PATH", DEFAULT_MODEL_PATH)
        
