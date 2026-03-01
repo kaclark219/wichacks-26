@@ -45,9 +45,15 @@ import { startActivityAndObserve } from "./activityTest";
 
 export default function App() {
   const audioCtxRef = useRef(null);
+
   const sadBufferRef = useRef(null);
   const sadSourceRef = useRef(null);
   const sadGainRef = useRef(null);
+
+  const chillBufferRef = useRef(null);
+  const chillSourceRef = useRef(null);
+  const chillGainRef = useRef(null);
+
   const [audioReady, setAudioReady] = useState(false);
   const [audioErr, setAudioErr] = useState(null);
 
@@ -84,28 +90,37 @@ export default function App() {
   const stopWebcamRef = useRef(null);
   const stopModeRef = useRef(null);
 
-  const ensureSadAudioReady = async () => {
+  const ensureAudioReady = async () => {
   try {
-    // 1) Create AudioContext + gain node once
     if (!audioCtxRef.current) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       audioCtxRef.current = new AudioCtx();
 
       sadGainRef.current = audioCtxRef.current.createGain();
-      sadGainRef.current.gain.value = 0.9; // volume
+      sadGainRef.current.gain.value = 0.9;
       sadGainRef.current.connect(audioCtxRef.current.destination);
+
+      chillGainRef.current = audioCtxRef.current.createGain();
+      chillGainRef.current.gain.value = 0.7;
+      chillGainRef.current.connect(audioCtxRef.current.destination);
     }
 
-    // 2) Unlock (must be called from a user gesture like your button click)
     if (audioCtxRef.current.state !== "running") {
       await audioCtxRef.current.resume();
     }
 
-    // 3) Fetch + decode mp3 once
+    // miaomiao
     if (!sadBufferRef.current) {
       const res = await fetch("http://localhost:5173/miaomiao.mp3");
       const arr = await res.arrayBuffer();
       sadBufferRef.current = await audioCtxRef.current.decodeAudioData(arr);
+    }
+
+    // chill
+    if (!chillBufferRef.current) {
+      const res = await fetch("http://localhost:5173/chill.mp3");
+      const arr = await res.arrayBuffer();
+      chillBufferRef.current = await audioCtxRef.current.decodeAudioData(arr);
     }
 
     setAudioReady(true);
@@ -118,7 +133,7 @@ export default function App() {
 };
 
 const startSadLoop = async () => {
-  const ok = await ensureSadAudioReady();
+  const ok = await ensureAudioReady();
   if (!ok) return;
 
   // already playing
@@ -153,6 +168,30 @@ const stopSadLoop = () => {
     if (toggleTransitioning) return transitionImg;
     return toggleState ? onImg : offImg;
   };
+
+  const startChillLoop = async () => {
+  const ok = await ensureAudioReady();
+  if (!ok) return;
+  if (chillSourceRef.current) return;
+
+  const ctx = audioCtxRef.current;
+  const src = ctx.createBufferSource();
+  src.buffer = chillBufferRef.current;
+  src.loop = true;
+  src.connect(chillGainRef.current);
+  src.start(0);
+  chillSourceRef.current = src;
+};
+
+const stopChillLoop = () => {
+  try {
+    if (chillSourceRef.current) {
+      chillSourceRef.current.stop(0);
+      chillSourceRef.current.disconnect();
+      chillSourceRef.current = null;
+    }
+  } catch {}
+};
 
 const buttonConfigs = [
   { id: "play", image: highContrastMode ? monoPlayBtn : playBtn, alt: "Play timer" },
@@ -284,7 +323,7 @@ const characterAlt = `Tamagotchi character: ${mood}, ${phaseLabel}, ${animLabel}
   };
 
   const handleButtonClick = (buttonId) => {
-    ensureSadAudioReady(); 
+    ensureAudioReady();
     switch (buttonId) {
       case "play":
         console.log("Play clicked");
@@ -566,6 +605,13 @@ useEffect(() => {
 }, [timerRunning, currentPhase, toggleState]);
 
 useEffect(() => {
+  if (!timerRunning || currentPhase !== "work") { stopChillLoop(); stopSadLoop(); return; }
+  if (!soundEnabled) {
+    stopChillLoop();
+    stopSadLoop();
+    return;
+  }
+
   const mode = toggleState ? "camera" : "activity";
   const status =
     mode === "camera"
@@ -573,21 +619,27 @@ useEffect(() => {
       : (backendData?.status ?? backendData?.tamagotchi?.last_status);
 
   const BAD = new Set(["idle", "phone", "sleep"]);
-  const shouldPlay = BAD.has(status);
+  const isUnfocused = BAD.has(status);
 
-  if (shouldPlay) startSadLoop();
-  else stopSadLoop();
-}, [backendData, toggleState]);
+  if (isUnfocused) {
+    stopChillLoop();
+    startSadLoop();     // miaomiao
+  } else {
+    stopSadLoop();
+    startChillLoop();   // chill
+  }
+}, [backendData, toggleState, soundEnabled]);
 
 useEffect(() => {
   return () => {
     stopSadLoop();
-    try {
-      audioCtxRef.current?.close();
-    } catch {}
+    stopChillLoop();
+    try { audioCtxRef.current?.close(); } catch {}
     audioCtxRef.current = null;
     sadBufferRef.current = null;
+    chillBufferRef.current = null;
     sadGainRef.current = null;
+    chillGainRef.current = null;
   };
 }, []);
 
