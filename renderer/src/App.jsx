@@ -121,16 +121,20 @@ const stopSadLoop = () => {
     return toggleState ? toggleOnBtn : toggleOffBtn;
   };
 
-  const buttonConfigs = [
-    { id: "play", image: playBtn },
-    { id: "pause", image: pauseBtn },
-    { id: "stop", image: stopBtn },
-    { id: "settings", image: settingsBtn },
-    { id: "close", image: closeBtn },
-    { id: "toggle", image: getToggleImage() },
-    { id: "timer", image: timerBckgrnd },
-  ];
+const buttonConfigs = [
+  { id: "play", image: playBtn, alt: "Play timer" },
+  { id: "pause", image: pauseBtn, alt: "Pause timer" },
+  { id: "stop", image: stopBtn, alt: "Stop timer" },
+  { id: "settings", image: settingsBtn, alt: "Settings" },
+  { id: "close", image: closeBtn, alt: "Close window" },
+  { id: "toggle", image: getToggleImage(), alt: toggleState ? "Camera mode enabled" : "Activity mode enabled" },
+  { id: "timer", image: timerBckgrnd, alt: "Timer background" },
+];
 
+const mood = backendData?.tamagotchi?.mood || "content";
+const phaseLabel = currentPhase === "work" ? "working" : "on break";
+const animLabel = spriteState === "base" ? "base pose" : "idle pose";
+const characterAlt = `Tamagotchi character: ${mood}, ${phaseLabel}, ${animLabel}`;
   // smart pixel detection logic
   useEffect(() => {
     const canvases = {};
@@ -450,7 +454,7 @@ useEffect(() => {
               transition: "transform 0.2s ease-out",
             }),
           }}
-          alt={btn.id}
+          alt={btn.alt}
           aria-label={btn.id}
         />
       ))}
@@ -531,7 +535,7 @@ useEffect(() => {
             transition: "opacity 0.3s ease-in-out",
             pointerEvents: "none",
           }}
-          alt="character"
+          alt={characterAlt}
         />
       )}
 
