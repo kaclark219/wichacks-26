@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - presage-network
+
+  physiology-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: presage-physiology-server
+    network_mode: host
+    privileged: true
+    devices:
+      - /dev/video0:/dev/video0
+    environment:
+      - DISPLAY=${DISPLAY}
+      - SMARTSPECTRA_API_KEY=${SMARTSPECTRA_API_KEY}
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - $HOME/.Xauthority:/root/.Xauthority:ro
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+networks:
+  presage-network:
+    driver: bridge
